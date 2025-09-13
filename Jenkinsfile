@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub-credentials')
         AWS_CREDENTIALS = credentials('aws-credentials')
-        DOCKER_IMAGE = 'your-dockerhub-username/devops-sample-app'
+        DOCKER_IMAGE = 'anuragstark/devops-sample-app'
         AWS_REGION = 'us-east-1'
         ECS_CLUSTER = 'devops-cluster'
         ECS_SERVICE = 'devops-service'
