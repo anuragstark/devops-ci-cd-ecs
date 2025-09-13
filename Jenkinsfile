@@ -1,6 +1,5 @@
 pipeline {
     agent any
-    
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub-pat')
         AWS_CREDENTIALS = credentials('aws-credentials')
@@ -10,44 +9,38 @@ pipeline {
         ECS_SERVICE = 'devops-service'
         ECS_TASK_DEFINITION = 'devops-task-definition'
     }
-    
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
-        
         stage('Install Dependencies') {
             steps {
                 sh 'npm ci'
             }
         }
-        
         stage('Run Tests') {
             steps {
                 // Skip failing tests if no npm test script
                 sh 'npm test || echo "No tests found, skipping..."'
             }
         }
-        
         stage('Build Docker Image') {
             steps {
                 script {
                     def buildNumber = env.BUILD_NUMBER
                     def imageTag = "${DOCKER_IMAGE}:${buildNumber}"
-                    
                     sh "docker build -t ${imageTag} ."
                     sh "docker tag ${imageTag} ${DOCKER_IMAGE}:latest"
-                    
                     env.IMAGE_TAG = imageTag
                 }
             }
         }
-        
         stage('Push to Docker Hub') {
             steps {
                 script {
+                    // Use the same credential ID as defined in environment
                     docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-pat') {
                         sh "docker push ${env.IMAGE_TAG}"
                         sh "docker push ${DOCKER_IMAGE}:latest"
@@ -55,7 +48,6 @@ pipeline {
                 }
             }
         }
-        
         stage('Deploy to ECS') {
             steps {
                 script {
@@ -73,7 +65,6 @@ pipeline {
             }
         }
     }
-    
     post {
         always {
             sh 'docker system prune -f'
