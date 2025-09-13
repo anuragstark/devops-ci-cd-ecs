@@ -42,6 +42,13 @@ docker-compose.override.yml
 # Terraform state files
 *.tfstate
 *.tfstate.*
+*.tfvars.backup
+.terraform.lock.hcl
+.terraform/
+**/.terraform.lock.hcl
+Terraform/.terraform.lock.hcl
+
+
 
 # Crash log files
 crash.log
