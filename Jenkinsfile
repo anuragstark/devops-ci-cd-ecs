@@ -3,8 +3,7 @@ pipeline {
     
     environment {
         DOCKER_HUB_CREDENTIALS = credentials('docker-hub-credentials')
-        AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')      // Use separate credentials if needed
-        AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+        AWS_CREDENTIALS = credentials('aws-credentials')
         DOCKER_IMAGE = 'anuragstark/devops-sample-app'
         AWS_REGION = 'us-east-1'
         ECS_CLUSTER = 'devops-cluster'
@@ -59,17 +58,17 @@ pipeline {
         
         stage('Deploy to ECS') {
             steps {
-                withEnv([
-                    "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}",
-                    "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
-                ]) {
-                    sh """
-                        aws ecs update-service \
-                            --cluster ${ECS_CLUSTER} \
-                            --service ${ECS_SERVICE} \
-                            --force-new-deployment \
-                            --region ${AWS_REGION}
-                    """
+                script {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+                        sh '''
+                            # Update ECS service with new image
+                            aws ecs update-service \
+                                --cluster ${ECS_CLUSTER} \
+                                --service ${ECS_SERVICE} \
+                                --force-new-deployment \
+                                --region ${AWS_REGION}
+                        '''
+                    }
                 }
             }
         }
@@ -77,7 +76,7 @@ pipeline {
     
     post {
         always {
-            sh 'docker system prune -f || true'
+            sh 'docker system prune -f'
         }
         success {
             echo 'Pipeline completed successfully!'
