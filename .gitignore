@@ -1,0 +1,62 @@
+
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.bak
+*.tmp
+*.log
+
+
+# Jenkins
+
+/var/lib/jenkins/
+/var/cache/jenkins/
+/var/log/jenkins/
+**/secrets/*
+**/credentials.xml
+**/identity.key.enc
+**/config-history/*
+**/plugins/*.jpi.tmp
+**/plugins/*.bak
+
+# Build / Temporary files
+target/
+build/
+dist/
+tmp/
+*.pid
+deploy.sh
+# Docker & Node.js
+node_modules/
+npm-debug.log
+docker-compose.override.yml
+.env
+.env.*
+.dockerignore
+
+# Terraform
+.terraform directories
+**/.terraform/*
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Ignore override files as they are usually local
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Terraform variable files (optional – only if containing secrets)
+*.tfvars
+*.tfvars.json
