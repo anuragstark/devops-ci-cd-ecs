@@ -78,15 +78,15 @@ resource "aws_route_table_association" "public_2" {
   route_table_id = aws_route_table.public.id
 }
 
-# Security Group
-resource "aws_security_group" "ecs_tasks" {
-  name_prefix = "devops-ecs-tasks-"
+# Security Groups
+resource "aws_security_group" "alb" {
+  name_prefix = "devops-alb-"
   vpc_id      = aws_vpc.main.id
 
   ingress {
     protocol    = "tcp"
-    from_port   = 3000
-    to_port     = 3000
+    from_port   = 80
+    to_port     = 80
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -95,6 +95,33 @@ resource "aws_security_group" "ecs_tasks" {
     from_port   = 0
     to_port     = 0
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "devops-alb-sg"
+  }
+}
+
+resource "aws_security_group" "ecs_tasks" {
+  name_prefix = "devops-ecs-tasks-"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    protocol        = "tcp"
+    from_port       = 3000
+    to_port         = 3000
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "devops-ecs-tasks-sg"
   }
 }
 
@@ -141,7 +168,55 @@ resource "aws_ecs_task_definition" "app" {
   ])
 }
 
-# ECS Service
+# Application Load Balancer
+resource "aws_lb" "main" {
+  name               = "devops-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+
+  tags = {
+    Name = "devops-alb"
+  }
+}
+
+resource "aws_lb_target_group" "app" {
+  name        = "devops-tg"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = 5
+    unhealthy_threshold = 2
+  }
+
+  tags = {
+    Name = "devops-target-group"
+  }
+}
+
+resource "aws_lb_listener" "app" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.app.arn
+  }
+}
+
+# ECS Service - Updated to include load balancer configuration
 resource "aws_ecs_service" "main" {
   name            = "devops-service"
   cluster         = aws_ecs_cluster.main.id
@@ -155,7 +230,16 @@ resource "aws_ecs_service" "main" {
     assign_public_ip = true
   }
 
-  depends_on = [aws_iam_role_policy_attachment.ecs_task_execution_role_policy]
+  load_balancer {
+    target_group_arn = aws_lb_target_group.app.arn
+    container_name   = "devops-app"
+    container_port   = 3000
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.ecs_task_execution_role_policy,
+    aws_lb_listener.app
+  ]
 }
 
 # CloudWatch Log Group
@@ -187,42 +271,8 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Application Load Balancer (Optional)
-resource "aws_lb" "main" {
-  name               = "devops-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.ecs_tasks.id]
-  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
-}
-
-resource "aws_lb_target_group" "app" {
-  name        = "devops-tg"
-  port        = 3000
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
-  target_type = "ip"
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
-    matcher             = "200"
-    path                = "/"
-    port                = "traffic-port"
-    protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
-  }
-}
-
-resource "aws_lb_listener" "app" {
-  load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
-  }
+# Output the ALB DNS name
+output "alb_dns_name" {
+  description = "DNS name of the load balancer"
+  value       = aws_lb.main.dns_name
 }
