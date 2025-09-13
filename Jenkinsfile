@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     environment {
-        DOCKER_HUB_CREDENTIALS = credentials('docker-hub-credentials')
+        DOCKER_HUB_CREDENTIALS = credentials('docker-hub-pat')
         AWS_CREDENTIALS = credentials('aws-credentials')
         DOCKER_IMAGE = 'anuragstark/devops-sample-app'
         AWS_REGION = 'us-east-1'
@@ -48,7 +48,7 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-credentials') {
+                    docker.withRegistry('https://registry.hub.docker.com', 'docker-hub-pat') {
                         sh "docker push ${env.IMAGE_TAG}"
                         sh "docker push ${DOCKER_IMAGE}:latest"
                     }
